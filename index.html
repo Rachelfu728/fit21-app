@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Fit21 破圈充能站</title>
+  
+  <!-- Mobile PWA Standalone Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Fit21 充能站">
+  <meta name="theme-color" content="#4f46e5">
+  <link rel="apple-touch-icon" href="fit21_app_icon_1790740557710.jpg">
+  <link rel="icon" type="image/jpeg" href="fit21_app_icon_1790740557710.jpg">
+
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @keyframes pulse-glow {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(99, 102, 241, 0.2); }
+      50% { transform: scale(1.02); box-shadow: 0 0 30px rgba(99, 102, 241, 0.5); }
+    }
+    .pulse-card { animation: pulse-glow 3s infinite ease-in-out; }
+    .tab-active { border-bottom: 3px solid #6366f1; color: #6366f1; font-weight: 700; }
+    /* iOS Momentum Scrolling & safe area */
+    body { -webkit-tap-highlight-color: transparent; padding-top: env(safe-area-inset-top); }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen pb-16 selection:bg-indigo-100 selection:text-indigo-800">
+  
+  <!-- Canvas for Confetti -->
+  <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-50"></canvas>
+
+  <div class="max-w-2xl mx-auto px-4 pt-4 md:pt-6">
+    
+    <!-- Header -->
+    <header class="mb-5 text-center">
+      <div class="flex items-center justify-center gap-3 mb-2">
+        <img src="fit21_app_icon_1790740557710.jpg" alt="Fit21 Icon" class="w-12 h-12 rounded-2xl shadow-md border-2 border-white ring-2 ring-indigo-100">
+        <div class="text-left">
+          <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold">
+            <span>🔥 Fit21 健康俱樂部</span>
+            <span>•</span>
+            <span id="current-date-text">2026/09/30</span>
+          </div>
+          <h1 class="text-2xl md:text-3xl font-black tracking-tight text-slate-900 leading-tight">
+            Fit21 <span class="text-indigo-600">破圈充能站</span>
+          </h1>
+        </div>
+      </div>
+      <p class="text-xs md:text-sm text-slate-500 max-w-md mx-auto">
+        Fit21 每日 3 位新朋友試飲挑戰 • 帶著滿滿能量，用真誠為社區傳遞健康
+      </p>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="flex border-b border-slate-200 mb-6 text-sm font-medium">
+      <button onclick="switchTab('tracker')" id="tab-tracker" class="flex-1 py-3 text-center tab-active transition-colors flex items-center justify-center gap-1.5">
+        <span>🎯 今日 3 人任務</span>
+      </button>
+      <button onclick="switchTab('wisdom')" id="tab-wisdom" class="flex-1 py-3 text-center text-slate-500 hover:text-slate-800 transition-colors flex items-center justify-center gap-1.5">
+        <span>💡 大師心態卡</span>
+      </button>
+      <button onclick="switchTab('scripts')" id="tab-scripts" class="flex-1 py-3 text-center text-slate-500 hover:text-slate-800 transition-colors flex items-center justify-center gap-1.5">
+        <span>💬 零壓力開場白</span>
+      </button>
+      <button onclick="switchTab('primer')" id="tab-primer" class="flex-1 py-3 text-center text-slate-500 hover:text-slate-800 transition-colors flex items-center justify-center gap-1.5">
+        <span>⚡ 60秒出門儀式</span>
+      </button>
+    </nav>
+
+    <!-- TAB 1: 3-Person Tracker -->
+    <section id="panel-tracker" class="space-y-6">
+      
+      <!-- Progress Banner -->
+      <div class="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+        <div class="relative z-10">
+          <div class="flex justify-between items-start mb-4">
+            <div>
+              <p class="text-indigo-200 text-xs font-semibold uppercase tracking-wider">今日目標進度</p>
+              <h2 class="text-3xl font-black mt-0.5" id="hero-progress-text">0 / 3 位試喝達標</h2>
+            </div>
+            <div class="text-right">
+              <span class="inline-block bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-lg text-xs font-medium">
+                連續達成：<b id="streak-days">1</b> 天 🔥
+              </span>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="w-full bg-white/20 rounded-full h-3 overflow-hidden p-0.5">
+            <div id="progress-bar-fill" class="bg-amber-400 h-full rounded-full transition-all duration-500 ease-out" style="width: 0%;"></div>
+          </div>
+          <p id="motivational-subtext" class="text-xs text-indigo-100 mt-2 font-medium">
+            踏出家門的第一步，你就已經超越了 95% 停留在想的人。
+          </p>
+        </div>
+      </div>
+
+      <!-- 3 Slots for Tasting -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Cup 1 -->
+        <div id="slot-card-1" class="border border-slate-200 bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition duration-200">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-slate-400">第一杯 🥤</span>
+            <span id="badge-1" class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-500 font-semibold">待尋找</span>
+          </div>
+          <h3 class="font-bold text-slate-800 text-base mb-1">破冰第一人</h3>
+          <p class="text-xs text-slate-500 mb-3" id="desc-1">只要送出這杯，今天的心理阻力直接減半！</p>
+          <div class="space-y-2" id="input-container-1">
+            <input type="text" id="name-1" placeholder="受邀者暱稱或特徵（例: 穿藍外套的女孩）" class="w-full text-xs p-2 rounded border border-slate-200 focus:outline-none focus:border-indigo-500">
+            <button onclick="completeSlot(1)" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg text-xs transition active:scale-95 shadow">
+              ✓ 完成試喝！解鎖能量
+            </button>
+          </div>
+          <div id="completed-view-1" class="hidden text-center py-2">
+            <span class="text-2xl">✨</span>
+            <p class="text-xs font-bold text-emerald-600 mt-1" id="completed-name-1">已成功試喝</p>
+            <button onclick="resetSlot(1)" class="text-[10px] text-slate-400 hover:text-slate-600 underline mt-1">取消或重新填寫</button>
+          </div>
+        </div>
+
+        <!-- Cup 2 -->
+        <div id="slot-card-2" class="border border-slate-200 bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition duration-200">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-slate-400">第二杯 🥤</span>
+            <span id="badge-2" class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-500 font-semibold">待尋找</span>
+          </div>
+          <h3 class="font-bold text-slate-800 text-base mb-1">乘勝追擊</h3>
+          <p class="text-xs text-slate-500 mb-3" id="desc-2">你的能量場已經熱開了，微笑越來越自然！</p>
+          <div class="space-y-2" id="input-container-2">
+            <input type="text" id="name-2" placeholder="受邀者特徵（例: 健身房門口的大哥）" class="w-full text-xs p-2 rounded border border-slate-200 focus:outline-none focus:border-indigo-500">
+            <button onclick="completeSlot(2)" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg text-xs transition active:scale-95 shadow">
+              ✓ 完成試喝！解鎖能量
+            </button>
+          </div>
+          <div id="completed-view-2" class="hidden text-center py-2">
+            <span class="text-2xl">🌟</span>
+            <p class="text-xs font-bold text-emerald-600 mt-1" id="completed-name-2">已成功試喝</p>
+            <button onclick="resetSlot(2)" class="text-[10px] text-slate-400 hover:text-slate-600 underline mt-1">取消或重新填寫</button>
+          </div>
+        </div>
+
+        <!-- Cup 3 -->
+        <div id="slot-card-3" class="border border-slate-200 bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition duration-200">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-slate-400">第三杯 🥤</span>
+            <span id="badge-3" class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-500 font-semibold">待尋找</span>
+          </div>
+          <h3 class="font-bold text-slate-800 text-base mb-1">王者收官</h3>
+          <p class="text-xs text-slate-500 mb-3" id="desc-3">最後一哩路，完成今天的圓滿承諾！</p>
+          <div class="space-y-2" id="input-container-3">
+            <input type="text" id="name-3" placeholder="受邀者特徵（例: 隔壁辦公室的上班族）" class="w-full text-xs p-2 rounded border border-slate-200 focus:outline-none focus:border-indigo-500">
+            <button onclick="completeSlot(3)" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg text-xs transition active:scale-95 shadow">
+              ✓ 完成試喝！成就達成
+            </button>
+          </div>
+          <div id="completed-view-3" class="hidden text-center py-2">
+            <span class="text-2xl">🎉</span>
+            <p class="text-xs font-bold text-emerald-600 mt-1" id="completed-name-3">已成功試喝</p>
+            <button onclick="resetSlot(3)" class="text-[10px] text-slate-400 hover:text-slate-600 underline mt-1">取消或重新填寫</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rejection Shield (Gamifying No's!) -->
+      <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center text-lg font-black shadow">
+              🛡️
+            </div>
+            <div>
+              <h4 class="font-bold text-amber-900 text-sm">拒絕免疫鎧甲 (Rejection Shield)</h4>
+              <p class="text-xs text-amber-700">納瓦爾思維：被拒絕只是免費過濾器，對方拒絕的是時間，不是你！</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="text-xl font-black text-amber-800" id="rejection-count">0</span>
+            <span class="text-xs text-amber-600 block">次經驗值</span>
+          </div>
+        </div>
+        <div class="mt-4 flex gap-2">
+          <button onclick="logRejection()" class="flex-1 bg-white hover:bg-amber-100 text-amber-800 border border-amber-300 font-semibold py-2 px-3 rounded-lg text-xs transition flex items-center justify-center gap-1">
+            <span>➕ 剛剛收穫一個「不用謝謝」(+1 經驗)</span>
+          </button>
+          <button onclick="resetRejections()" class="text-xs text-amber-600 hover:text-amber-800 px-2 py-1">
+            重設
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- TAB 2: Wisdom Cards -->
+    <section id="panel-wisdom" class="hidden space-y-6">
+      <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <div class="flex justify-between items-center mb-4">
+          <div class="flex gap-2">
+            <button onclick="filterWisdom('tony')" id="filter-tony" class="px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">安東尼·羅賓</button>
+            <button onclick="filterWisdom('naval')" id="filter-naval" class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">納瓦爾·拉維肯特</button>
+            <button onclick="filterWisdom('courage')" id="filter-courage" class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">拒絕脫敏心態</button>
+          </div>
+          <button onclick="drawRandomQuote()" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-3 py-1.5 rounded-lg shadow transition active:scale-95 flex items-center gap-1">
+            <span>🎲 換一張金句</span>
+          </button>
+        </div>
+
+        <!-- Quote Card Display -->
+        <div id="quote-card" class="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-xl p-6 min-h-[220px] flex flex-col justify-between shadow-md transition-all">
+          <div>
+            <div class="flex items-center gap-2 mb-3">
+              <span id="quote-author-badge" class="px-2.5 py-0.5 rounded text-[11px] font-bold bg-indigo-500/30 text-indigo-300 border border-indigo-400/30">安東尼·羅賓</span>
+              <span class="text-slate-400 text-xs" id="quote-category">生理與行動巔峰</span>
+            </div>
+            <p id="quote-text" class="text-lg md:text-xl font-medium leading-relaxed tracking-wide text-slate-100">
+              「情緒是由動態創造的（Emotion is created by motion）。當你不想動的時候，挺起胸膛、大步往前走，勇氣就會強行跟上！」
+            </p>
+          </div>
+          <div class="mt-4 pt-4 border-t border-white/10 flex justify-between items-center text-xs text-slate-400">
+            <span id="quote-actionable">⚡ 行動指南：現在深吸一口氣，肩膀往後轉 3 圈！</span>
+            <button onclick="speakQuote()" class="text-indigo-300 hover:text-white flex items-center gap-1">
+              <span>🔊 朗讀</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Mentality Comparison -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-indigo-50/70 border border-indigo-100 rounded-xl p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-lg">🔥</span>
+            <h4 class="font-bold text-indigo-900 text-sm">安東尼·羅賓模式 (極致狀態)</h4>
+          </div>
+          <p class="text-xs text-indigo-800 leading-relaxed">
+            <b>不要用意志力硬撐，用「生理機制」帶動。</b> 出門前聽一首戰歌、抬頭挺胸。把你腦中的「我又要去打擾別人了」換成「我正帶著最好的禮物，去拯救一個下午昏昏欲睡的人」。
+          </p>
+        </div>
+
+        <div class="bg-emerald-50/70 border border-emerald-100 rounded-xl p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-lg">🧘</span>
+            <h4 class="font-bold text-emerald-900 text-sm">納瓦爾模式 (非對稱收益)</h4>
+          </div>
+          <p class="text-xs text-emerald-800 leading-relaxed">
+            <b>非對稱賭局 (Asymmetric Upside)：</b> 對方說「不要」，你的下檔損失是 0（他 3 秒後就忘了）；對方若停下腳步喝了一杯，潛在收益是無限的健康與友誼。這在數學上永遠是必勝的！
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: Scripts & Icebreakers -->
+    <section id="panel-scripts" class="hidden space-y-6">
+      <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h3 class="font-bold text-slate-900 text-base">零壓力破冰錦囊</h3>
+            <p class="text-xs text-slate-500">去掉推銷感！用「請教、盲測、送驚喜」讓對方卸下防備</p>
+          </div>
+          <button onclick="randomizeScript()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-1.5 rounded-lg transition active:scale-95">
+            🎲 隨機推薦一個情境
+          </button>
+        </div>
+
+        <div class="space-y-4" id="script-list">
+          <!-- Script 1 -->
+          <div class="script-card border border-indigo-200 bg-indigo-50/60 rounded-xl p-4 transition ring-2 ring-indigo-500/20 shadow-sm">
+            <div class="flex items-center justify-between mb-2">
+              <span class="px-2.5 py-0.5 rounded text-[11px] font-bold bg-indigo-600 text-white">⭐ 你的專屬黃金開場白（最自然、舒服）</span>
+              <span class="text-xs text-slate-400">對方角色：評鑑品嚐者，零防備</span>
+            </div>
+            <p class="text-lg font-bold text-slate-900 mb-1">
+              「你好！我們在做健康飲品推廣，幫我們新口味做個試飲好嗎？」
+            </p>
+            <p class="text-xs text-slate-500 mt-2">
+              💡 <b>這句超強的原因</b>：「幫我們」是尋求小幫忙（富蘭克林效應），對方會覺得自己被尊重、是來當品鑑官，而不是被推銷！語氣親切有禮，講出口毫無心裡負擔。
+            </p>
+          </div>
+
+          <!-- Script 2 -->
+          <div class="script-card border border-slate-200 bg-white rounded-xl p-4 transition">
+            <div class="flex items-center justify-between mb-2">
+              <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-600 text-white">⏱️ 對方猶豫時（解除時間顧慮）</span>
+              <span class="text-xs text-slate-400">消除「會不會被拖很久」的恐懼</span>
+            </div>
+            <p class="text-base font-bold text-slate-900 mb-1">
+              「只要 1 分鐘，幫我們試喝一口打個分數就好，不用任何費用喔！」
+            </p>
+            <p class="text-xs text-slate-500 mt-2">
+              💡 <b>秒殺要訣</b>：對方猶豫通常是怕「被困在裡面出不來」。明確說出<b>「只要1分鐘、試喝一口打分數」</b>，立刻把時間壓力降到最低。
+            </p>
+          </div>
+
+          <!-- Script 3 -->
+          <div class="script-card border border-slate-200 bg-white rounded-xl p-4 transition">
+            <div class="flex items-center justify-between mb-2">
+              <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-600 text-white">📄 遞傳單標準說法（純推廣無負擔）</span>
+              <span class="text-xs text-slate-400">路人走過時的自然遞單</span>
+            </div>
+            <p class="text-base font-bold text-slate-900 mb-1">
+              「午安！這張給您參考，我們在一樓推廣健康飲品，有空可以幫我們試飲新口味喔！」
+            </p>
+            <p class="text-xs text-slate-500 mt-2">
+              💡 <b>秒殺要訣</b>：親切大方，不求對方立刻走進來，像個專業推廣員一樣把傳單交到對方手中，完全不糾纏。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: 60s Launchpad -->
+    <section id="panel-primer" class="hidden space-y-6">
+      <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <h3 class="font-bold text-slate-900 text-base mb-1">出門前 60 秒強效起跑儀式</h3>
+        <p class="text-xs text-slate-500 mb-6">安東尼·羅賓曾說：生理狀態 (Physiology) 永遠快於思想。跟著節奏做完，直接踏出門！</p>
+
+        <!-- Steps -->
+        <div class="space-y-4">
+          <div class="flex gap-4 items-start p-3 rounded-xl bg-slate-50 border border-slate-100">
+            <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">1</div>
+            <div>
+              <h4 class="font-bold text-slate-800 text-sm">改變生理姿態（15秒）</h4>
+              <p class="text-xs text-slate-500 mt-0.5">站起來，雙腳與肩同寬，雙手叉腰（神力女超人/超人站姿），深呼吸 3 次，把肩膀往後轉開，嘴角上揚 45 度。</p>
+            </div>
+          </div>
+
+          <div class="flex gap-4 items-start p-3 rounded-xl bg-slate-50 border border-slate-100">
+            <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">2</div>
+            <div>
+              <h4 class="font-bold text-slate-800 text-sm">重新定義你的身份（15秒）</h4>
+              <p class="text-xs text-slate-500 mt-0.5">大聲或默念：「我今天不是要去向別人推銷什麼，我是一個健康的使者，我正帶著好喝的能量禮物走進人群。」</p>
+            </div>
+          </div>
+
+          <div class="flex gap-4 items-start p-3 rounded-xl bg-slate-50 border border-slate-100">
+            <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">3</div>
+            <div>
+              <h4 class="font-bold text-slate-800 text-sm">挑選你今天的第一句台詞（15秒）</h4>
+              <p class="text-xs text-slate-500 mt-0.5">直接決定：「今天我就用最舒服的這句<b>『你好！我們在做健康飲品推廣，幫我們新口味做個試飲好嗎？』</b>，其他都不用多想！」</p>
+            </div>
+          </div>
+
+          <div class="flex gap-4 items-start p-3 rounded-xl bg-indigo-50 border border-indigo-200">
+            <div class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-xs shrink-0">4</div>
+            <div class="flex-1">
+              <h4 class="font-bold text-indigo-950 text-sm">5 秒啟動法則（倒數出發）</h4>
+              <p class="text-xs text-indigo-800 mt-0.5">點擊下方按鈕，倒數 5-4-3-2-1，直接穿鞋開門！不給大腦任何找藉口的空檔！</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 text-center">
+          <button id="btn-launch-countdown" onclick="startCountdown()" class="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-extrabold py-3.5 px-6 rounded-xl shadow-lg transition active:scale-98 text-base">
+            🚀 點擊啟動：5 秒倒數出發儀式！
+          </button>
+          <div id="countdown-display" class="hidden mt-4">
+            <span id="countdown-num" class="text-5xl font-black text-indigo-600 animate-bounce block">5</span>
+            <p class="text-xs text-slate-500 font-semibold mt-1">穿鞋！開門！走出去！</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Mobile PWA Tip Card -->
+    <div class="mt-8 p-3.5 rounded-xl bg-indigo-50/60 border border-indigo-100 text-indigo-900 text-xs flex items-center gap-3 shadow-sm">
+      <span class="text-2xl shrink-0">📲</span>
+      <p class="leading-relaxed">
+        <b class="text-indigo-950">手機安裝為 App 秘訣：</b>用手機 Safari 開啟，點擊下方「分享 ➔ 加入主畫面」（Android 點右上角「安裝應用程式」），就會自動生成專屬 Fit21 3D App 圖示，全螢幕無網址列絲滑運行！
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-6 text-center text-xs text-slate-400">
+      <p>Fit21 破圈充能站 • 給勇敢邁向人群的你 • 每一小步都在累積未來強大的自己</p>
+    </footer>
+
+  </div>
+
+  <script>
+    // Audio synthesizer for celebratory feedback (no external MP3 needed)
+    function playChime(type) {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'success') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+          osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); // E5
+          osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); // G5
+          osc.frequency.setValueAtTime(1046.50, audioCtx.currentTime + 0.3); // C6
+          gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.8);
+        } else if (type === 'shield') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(330, audioCtx.currentTime);
+          osc.frequency.setValueAtTime(440, audioCtx.currentTime + 0.1);
+          gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.4);
+        }
+      } catch (e) {
+        console.log('Audio not supported');
+      }
+    }
+
+    // Confetti effect
+    function fireConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const particles = [];
+      const colors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6'];
+
+      for (let i = 0; i < 70; i++) {
+        particles.push({
+          x: canvas.width / 2,
+          y: canvas.height / 3,
+          vx: (Math.random() - 0.5) * 12,
+          vy: (Math.random() - 0.7) * 14,
+          size: Math.random() * 8 + 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rotation: Math.random() * 360,
+          rotSpeed: (Math.random() - 0.5) * 10
+        });
+      }
+
+      let frames = 0;
+      function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.3; // gravity
+          p.rotation += p.rotSpeed;
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate((p.rotation * Math.PI) / 180);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+          ctx.restore();
+        });
+        frames++;
+        if (frames < 90) {
+          requestAnimationFrame(render);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      render();
+    }
+
+    // Quotes Database (18 High-Impact Quotes)
+    const quotes = [
+      // 安東尼·羅賓 系列 (9 條)
+      {
+        author: "安東尼·羅賓",
+        category: "生理與行動巔峰",
+        text: "「情緒是由動態創造的（Emotion is created by motion）。當你不想動的時候，挺起胸膛、大步往前走，勇氣就會強行跟上！」",
+        actionable: "⚡ 行動指南：現在深吸一口氣，肩膀往後轉 3 圈！"
+      },
+      {
+        author: "安東尼·羅賓",
+        category: "破除恐懼",
+        text: "「真正的決定是以採取新行動為標準的。如果你還沒行動，表示你根本還沒真正做決定。」",
+        actionable: "⚡ 行動指南：不要再等感覺準備好，穿上鞋子出發！"
+      },
+      {
+        author: "安東尼·羅賓",
+        category: "焦點重設",
+        text: "「焦點在哪裡，能量就流向哪裡。如果你一直盯著『怕被冷落』，你就會看見滿街的冷漠；如果你盯著『尋找需要健康的第 1 個人』，滿街都是奇蹟。」",
+        actionable: "⚡ 行動指南：告訴自己，今天你的任務只是找到那 3 個人。"
+      },
+      {
+        author: "安東尼·羅賓",
+        category: "突破舒適圈",
+        text: "「如果你總是做自己一直在做的事，你就只能得到自己一直擁有的東西。真正的成長只發生在舒適圈的外緣。」",
+        actionable: "⚡ 行動指南：今天這一步，就是打破過去迴圈的起點！"
+      },
+      {
+        author: "安東尼·羅賓",
+        category: "狀態瞬轉",
+        text: "「改變你的生理狀態（呼吸、站姿、表情），你的內心狀態就會在 5 秒鐘之內跟著徹底翻轉。」",
+        actionable: "⚡ 行動指南：嘴角上揚 45 度，眼神堅定看著前方！"
+      },
+      {
+        author: "安東尼·羅賓",
+        category: "行動壓制恐懼",
+        text: "「殺死猶豫最好的武器，就是立即採取壓倒性的行動（Massive Action）。想得越多，恐懼越大；動得越快，阻力越小。」",
+        actionable: "⚡ 行動指南：數到 3，不要思考，直接跨出門口！"
+      },
+      {
+        author: "安東尼·羅賓",
+        category: "指南針思維",
+        text: "「恐懼不是你的敵人，它是你即將迎來重大突破的指南針。哪裡讓你感到緊張，那裡就是你最該前進的方向。」",
+        actionable: "⚡ 行動指南：把緊張感當作身體在為你加油的信號！"
+      },
+      {
+        author: "安東尼·羅賓",
+        category: "複利奇蹟",
+        text: "「大部分人高估了一天能做的事，卻嚴重低估了一年每天堅持做一點點所能產生的巨大奇蹟。」",
+        actionable: "⚡ 行動指南：今天只要找到 3 個人，一年後你將脫胎換骨！"
+      },
+      {
+        author: "安東尼·羅賓",
+        category: "信守承諾",
+        text: "「永遠不要在許下承諾的地方離開，而沒有立即採取至少一個具體的微小行動。」",
+        actionable: "⚡ 行動指南：拿好 5 張傳單，現在就推開店門！"
+      },
+
+      // 納瓦爾·拉維肯特 系列 (8 條)
+      {
+        author: "納瓦爾·拉維肯特",
+        category: "非對稱思維",
+        text: "「在任何擁有非對稱收益的賽道上，被拒絕的成本是 0，而成功的潛在收益是無限的。只要下檔風險是零，你就應該瘋狂試錯。」",
+        actionable: "⚡ 行動指南：每一次開口，你的代價僅僅是 5 秒鐘的空氣，但收益是一輩子！"
+      },
+      {
+        author: "納瓦爾·拉維肯特",
+        category: "放下討好執念",
+        text: "「放下渴望被所有陌生人喜愛的執念。一旦你不在乎路人的一秒眼神，你就獲得了全世界最大的行動自由。」",
+        actionable: "⚡ 行動指南：把別人的拒絕看作『信號過濾』，省下彼此的時間。"
+      },
+      {
+        author: "納瓦爾·拉維肯特",
+        category: "複利與長期主義",
+        text: "「生活中所有的回報都來自複利——無論是人際關係、健康還是財富。今天這 3 杯試喝，就是你在替自己的未來存入複利本金。」",
+        actionable: "⚡ 行動指南：不用想著今天要成交誰，只把今天的種子播下。"
+      },
+      {
+        author: "納瓦爾·拉維肯特",
+        category: "尷尬的半衰期",
+        text: "「最自由的人，是那個隨時準備好面對尷尬的人。尷尬的半衰期只有 5 秒鐘，但退縮帶來的遺憾會持續一整天。」",
+        actionable: "⚡ 行動指南：尷尬 5 秒鐘換一整天的踏實與自豪，這筆交易太划算了！"
+      },
+      {
+        author: "納瓦爾·拉維肯特",
+        category: "真實與共鳴",
+        text: "「你不是在推銷，你是在用你的真誠與能量去尋找跟你頻率相同的人。拒絕只是在替你排除不對的雜訊。」",
+        actionable: "⚡ 行動指南：帶著你的真誠微笑去說那句話，對的人自然會停下來。"
+      },
+      {
+        author: "納瓦爾·拉維肯特",
+        category: "零期待心態",
+        text: "「痛苦是現實與你心中期待產生摩擦的產物。放下『每個人都要理我』的期待，你就能帶著無比平靜的心情面對所有人。」",
+        actionable: "⚡ 行動指南：保持零期待的純粹分享心態，開口就毫無負擔！"
+      },
+      {
+        author: "納瓦爾·拉維肯特",
+        category: "極度簡化",
+        text: "「真正的行動力來自於極度的簡單——決定一件事，然後去執行它，不加任何內心戲。」",
+        actionable: "⚡ 行動指南：關掉腦中所有小劇場，台詞只有一句，直接說出口！"
+      },
+      {
+        author: "納瓦爾·拉維肯特",
+        category: "專屬勇氣",
+        text: "「如果你想擁有非凡的人生結果，你就必須願意去做那些普通人覺得不自在、會猶豫的事情。」",
+        actionable: "⚡ 行動指南：當你在門口開口那一刻，你就已經超越了 99% 的人！"
+      },
+
+      // 拒絕脫敏心態系列 (10 條名家金句)
+      {
+        author: "賈許·姜 (Jia Jiang)",
+        category: "拒絕脫敏·戳破保鮮膜",
+        text: "「恐懼不是客觀存在的怪物，它只是一層薄薄的保鮮膜，只要你伸出手指用力戳一下，它就破了。」",
+        actionable: "⚡ 行動指南：主動去收集今天第 1 個『不用謝謝』，你會發現天根本不會塌下來！"
+      },
+      {
+        author: "提姆·費里斯 (Tim Ferriss)",
+        category: "拒絕脫敏·對話的維度",
+        text: "「一個人一生的成就與格局，取決於他願意進行多少次『令人感到不自在』的簡短對話。」",
+        actionable: "⚡ 行動指南：把這 1 分鐘的不自在，當作通往強大心智的必經門票！"
+      },
+      {
+        author: "莎拉·布雷克利 (Sara Blakely)",
+        category: "拒絕脫敏·失敗的定義",
+        text: "「我父親每天晚餐都會問我：『你今天被誰拒絕了？』被拒絕不是失敗，不敢開口嘗試才是真正的失敗。」",
+        actionable: "⚡ 行動指南：把被路人無視當作收集金幣，今天你為自己的勇敢感到自豪！"
+      },
+      {
+        author: "J.K. 羅琳 (J.K. Rowling)",
+        category: "拒絕脫敏·不可避免的碰撞",
+        text: "「生活中遭遇拒絕是不可避免的。除非你活得無比膽怯，以至於根本不算真正活過。跌倒了，拍拍灰塵，繼續向前。」",
+        actionable: "⚡ 行動指南：被 12 家出版社拒絕才能誕生哈利波特，開口問下一個人！"
+      },
+      {
+        author: "布芮尼·布朗 (Brené Brown)",
+        category: "拒絕脫敏·站進競技場",
+        text: "「勇氣不是無所畏懼，而是明知道有可能被拒絕、被冷落，你依然選擇穿好衣服，勇敢站進人生的競技場裡。」",
+        actionable: "⚡ 行動指南：你站在一樓門口迎賓的身影，就已經是全場最勇敢的勇士！"
+      },
+      {
+        author: "馬可·奧理略 (Marcus Aurelius)",
+        category: "拒絕脫敏·斯多葛清醒",
+        text: "「我們每個人愛自己都勝過愛別人，卻總在乎陌生人的眼光勝過自己的價值。路人一秒鐘的冷淡，絲毫傷不到你靈魂的高貴。」",
+        actionable: "⚡ 行動指南：陌生人的反應屬於他自己，你的真誠與勇氣屬於你自己！"
+      },
+      {
+        author: "馬雲 (Jack Ma)",
+        category: "拒絕脫敏·常態化思維",
+        text: "「我年輕時去應徵工作，24 個人錄取 23 個，只有我被刷掉。被拒絕是世界上最正常的事情，習慣被拒絕，你才能真正強大。」",
+        actionable: "⚡ 行動指南：把『不用』當作背景音樂，深吸一口氣，微笑看著下一位！"
+      },
+      {
+        author: "阿爾伯特·哈伯德 (Elbert Hubbard)",
+        category: "拒絕脫敏·突破平庸",
+        text: "「如果你想百分之百避免被任何人拒絕與批評，世上只有一個方法：什麼都不說、什麼都不做、什麼都別成為。」",
+        actionable: "⚡ 行動指南：被拒絕代表你正在採取行動，你正在打破平庸、創造改變！"
+      },
+      {
+        author: "邱吉爾 (Winston Churchill)",
+        category: "拒絕脫敏·不滅的熱情",
+        text: "「真正的成功，就是從一個又一個的拒絕中昂首走過，卻始終不曾喪失半點熱情與微笑。」",
+        actionable: "⚡ 行動指南：甩甩手腕，嘴角上揚，把最好的能量留給下一個人！"
+      },
+      {
+        author: "詹姆斯·克利爾 (James Clear)",
+        category: "拒絕脫敏·身分認同投票",
+        text: "「每一次你在害怕被拒絕的當下依然開口，都是在為你未來那個『自信、強大、不可動搖的自己』投下一張關鍵的選票。」",
+        actionable: "⚡ 行動指南：不用在乎這張傳單有沒有送出去，你已經為強大的自己投了一票！"
+      }
+    ];
+
+    let currentFilter = 'all';
+
+    function drawRandomQuote() {
+      let filtered = quotes;
+      if (currentFilter === 'tony') {
+        filtered = quotes.filter(q => q.author === '安東尼·羅賓');
+      } else if (currentFilter === 'naval') {
+        filtered = quotes.filter(q => q.author.includes('納瓦爾'));
+      } else if (currentFilter === 'courage') {
+        filtered = quotes.filter(q => q.category.includes('拒絕脫敏'));
+      }
+      const item = filtered[Math.floor(Math.random() * filtered.length)];
+      
+      document.getElementById('quote-author-badge').innerText = item.author;
+      document.getElementById('quote-category').innerText = item.category;
+      document.getElementById('quote-text').innerText = item.text;
+      document.getElementById('quote-actionable').innerText = item.actionable;
+    }
+
+    function filterWisdom(type) {
+      currentFilter = type;
+      ['tony', 'naval', 'courage'].forEach(t => {
+        const btn = document.getElementById(`filter-${t}`);
+        if (t === type) {
+          btn.className = "px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700";
+        } else {
+          btn.className = "px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600";
+        }
+      });
+      drawRandomQuote();
+    }
+
+    function speakQuote() {
+      const text = document.getElementById('quote-text').innerText;
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'zh-TW';
+        utter.rate = 0.95;
+        window.speechSynthesis.speak(utter);
+      } else {
+        alert('您的瀏覽器不支援語音播放');
+      }
+    }
+
+    // Tab Navigation
+    function switchTab(tabId) {
+      ['tracker', 'wisdom', 'scripts', 'primer'].forEach(t => {
+        const panel = document.getElementById(`panel-${t}`);
+        const tabBtn = document.getElementById(`tab-${t}`);
+        if (t === tabId) {
+          panel.classList.remove('hidden');
+          tabBtn.className = "flex-1 py-3 text-center tab-active transition-colors flex items-center justify-center gap-1.5";
+        } else {
+          panel.classList.add('hidden');
+          tabBtn.className = "flex-1 py-3 text-center text-slate-500 hover:text-slate-800 transition-colors flex items-center justify-center gap-1.5";
+        }
+      });
+    }
+
+    // Slot completion state
+    let completedCount = 0;
+    const slots = {
+      1: { done: false, name: '' },
+      2: { done: false, name: '' },
+      3: { done: false, name: '' }
+    };
+
+    function updateProgressUI() {
+      completedCount = Object.values(slots).filter(s => s.done).length;
+      document.getElementById('hero-progress-text').innerText = `${completedCount} / 3 位試喝達標`;
+      
+      const pct = (completedCount / 3) * 100;
+      document.getElementById('progress-bar-fill').style.width = `${pct}%`;
+
+      const subtexts = [
+        "踏出家門的第一步，你就已經超越了 95% 停留在想的人。",
+        "太棒了！第一位已經成功，你身上的能量已經完全打開！",
+        "第二位達成！只差最後一位，今日使命即將圓滿！",
+        "🎉 太不可思議了！今天的 3 位試喝目標全部達成！你是真正的破圈英雄！"
+      ];
+      document.getElementById('motivational-subtext').innerText = subtexts[completedCount];
+
+      // Save to local storage
+      localStorage.setItem('shake_hero_slots', JSON.stringify(slots));
+    }
+
+    function completeSlot(id) {
+      const nameInput = document.getElementById(`name-${id}`);
+      const val = nameInput.value.trim() || `第 ${id} 位朋友`;
+      slots[id].done = true;
+      slots[id].name = val;
+
+      document.getElementById(`input-container-${id}`).classList.add('hidden');
+      document.getElementById(`completed-view-${id}`).classList.remove('hidden');
+      document.getElementById(`completed-name-${id}`).innerText = `✓ ${val}（已試喝）`;
+      
+      const badge = document.getElementById(`badge-${id}`);
+      badge.className = "text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold";
+      badge.innerText = "已達成 ✨";
+
+      document.getElementById(`slot-card-${id}`).classList.add('border-emerald-300', 'bg-emerald-50/30');
+
+      playChime('success');
+      fireConfetti();
+      updateProgressUI();
+    }
+
+    function resetSlot(id) {
+      slots[id].done = false;
+      slots[id].name = '';
+      document.getElementById(`input-container-${id}`).classList.remove('hidden');
+      document.getElementById(`completed-view-${id}`).classList.add('hidden');
+      
+      const badge = document.getElementById(`badge-${id}`);
+      badge.className = "text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-500 font-semibold";
+      badge.innerText = "待尋找";
+
+      document.getElementById(`slot-card-${id}`).classList.remove('border-emerald-300', 'bg-emerald-50/30');
+      updateProgressUI();
+    }
+
+    // Rejection tracker
+    let rejections = 0;
+    function logRejection() {
+      rejections++;
+      document.getElementById('rejection-count').innerText = rejections;
+      localStorage.setItem('shake_hero_rejections', rejections);
+      playChime('shield');
+    }
+
+    function resetRejections() {
+      if (confirm('確定重設今天的拒絕次數嗎？')) {
+        rejections = 0;
+        document.getElementById('rejection-count').innerText = rejections;
+        localStorage.setItem('shake_hero_rejections', rejections);
+      }
+    }
+
+    // Countdown 5s
+    function startCountdown() {
+      const btn = document.getElementById('btn-launch-countdown');
+      const display = document.getElementById('countdown-display');
+      const num = document.getElementById('countdown-num');
+      btn.classList.add('hidden');
+      display.classList.remove('hidden');
+
+      let count = 5;
+      num.innerText = count;
+      playChime('shield');
+
+      const timer = setInterval(() => {
+        count--;
+        if (count > 0) {
+          num.innerText = count;
+          playChime('shield');
+        } else {
+          clearInterval(timer);
+          num.innerText = "GO! 🚀";
+          playChime('success');
+          fireConfetti();
+          setTimeout(() => {
+            btn.classList.remove('hidden');
+            display.classList.add('hidden');
+          }, 4000);
+        }
+      }, 1000);
+    }
+
+    // Randomize script highlight
+    function randomizeScript() {
+      const cards = document.querySelectorAll('.script-card');
+      cards.forEach(c => c.classList.remove('ring-2', 'ring-indigo-500', 'scale-[1.02]'));
+      const randomIndex = Math.floor(Math.random() * cards.length);
+      cards[randomIndex].classList.add('ring-2', 'ring-indigo-500', 'scale-[1.02]');
+      cards[randomIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // Initial Load
+    window.addEventListener('DOMContentLoaded', () => {
+      // Date
+      const today = new Date();
+      document.getElementById('current-date-text').innerText = `${today.getFullYear()}/${today.getMonth()+1}/${today.getDate()}`;
+
+      // Load rejections
+      const savedRejections = localStorage.getItem('shake_hero_rejections');
+      if (savedRejections) {
+        rejections = parseInt(savedRejections) || 0;
+        document.getElementById('rejection-count').innerText = rejections;
+      }
+
+      // Load slots
+      const savedSlots = localStorage.getItem('shake_hero_slots');
+      if (savedSlots) {
+        try {
+          const parsed = JSON.parse(savedSlots);
+          for (let id of [1, 2, 3]) {
+            if (parsed[id] && parsed[id].done) {
+              slots[id] = parsed[id];
+              document.getElementById(`input-container-${id}`).classList.add('hidden');
+              document.getElementById(`completed-view-${id}`).classList.remove('hidden');
+              document.getElementById(`completed-name-${id}`).innerText = `✓ ${slots[id].name}`;
+              const badge = document.getElementById(`badge-${id}`);
+              badge.className = "text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold";
+              badge.innerText = "已達成 ✨";
+              document.getElementById(`slot-card-${id}`).classList.add('border-emerald-300', 'bg-emerald-50/30');
+            }
+          }
+        } catch (e) {}
+      }
+      updateProgressUI();
+    });
+  </script>
+</body>
+</html>
