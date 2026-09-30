@@ -14,4 +14,4 @@
 1. 到 GitHub 倉庫設定 `Settings` ➔ `Pages`
 2. Source 選擇 `Deploy from a branch`
 3. Branch 選擇 `main` / `root` ➔ 按下 `Save`
-4. 幾分鐘後即可獲得你的專屬 HTTPS 網址，在手機瀏覽器開啟並加到主畫面！
+4. 幾分鐘後即可獲得你的專屬 HTTPS 網址，在手機瀏覽器開啟並加到主畫面！ 
